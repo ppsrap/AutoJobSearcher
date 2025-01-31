@@ -1,0 +1,15 @@
+{
+  "name": "jobjourney-extension",
+  "version": "1.0.0",
+  "description": "JobJourney Assistant 是一个强大的 Chrome 扩展，帮助您在多个招聘平台（LinkedIn、SEEK、Indeed）上搜索和追踪工作申请。",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "jsdom": "^26.0.0"
+  }
+}
