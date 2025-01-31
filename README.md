@@ -18,11 +18,9 @@ This extension uses web scraping to collect job information. Please note:
   - Use this tool responsibly and ethically
   - This extension is for personal use only
 - **Data Accuracy**:
-
   - Job listings may change or be removed without notice
   - Always verify information on the original job posting
   - We cannot guarantee 100% accuracy of scraped data
-
 - **Site Changes**:
   - Website structure changes may temporarily affect the extension's functionality
   - Updates will be released to address any scraping issues
@@ -33,7 +31,7 @@ This extension uses web scraping to collect job information. Please note:
 ### Multi-Platform Support
 
 - **LinkedIn**: Extracts job titles, companies, locations, salaries, and posting dates
-- **Indeed**: Captures comprehensive job details including job type (Full-time, Part-time, etc.), salary information, and descriptions
+- **Indeed**: Captures comprehensive job details including job type, salary information, and descriptions
 - **SEEK**: Scrapes job listings with company information, locations, and salary details
 
 ### Data Extraction
@@ -61,37 +59,22 @@ The extension automatically extracts:
 
 1. **Installation**
 
-   ```bash
-   # Clone the repository
-   git clone https://github.com/Rorogogogo/Jobjourney-extention.git
-
-   # Install dependencies
-   npm install
-   ```
-
-2. **Development Setup**
-
+   - Download the extension files
    - Open Chrome and navigate to `chrome://extensions/`
    - Enable "Developer mode"
    - Click "Load unpacked" and select the extension directory
 
-3. **Job Search**
+2. **Job Search**
 
    - Visit LinkedIn, Indeed, or SEEK
    - Search for jobs as you normally would
    - The extension will automatically detect and scrape job listings
 
-4. **Managing Jobs**
-
+3. **Managing Jobs**
    - Click the extension icon to view scraped jobs
    - Use the "Save" button to sync jobs with your JobJourney account
    - Click "View" to open the original job posting
    - Export jobs to CSV format for offline use
-
-5. **JobJourney Integration**
-   - Create an account at [JobJourney](https://jobjourney.me/)
-   - Log in to access your saved jobs and track your applications
-   - Get comprehensive insights into your job search progress
 
 ## Supported Platforms
 
@@ -110,9 +93,8 @@ The extension automatically extracts:
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
 - Chrome Browser
-- Git
+- Basic understanding of JavaScript and browser extensions
 
 ### Local Development
 
@@ -122,19 +104,9 @@ The extension automatically extracts:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## Contributing
-
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/Rorogogogo/Jobjourney-extention/blob/main/LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 

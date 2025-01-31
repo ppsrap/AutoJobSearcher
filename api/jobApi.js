@@ -1,5 +1,7 @@
-// API base URL - change this to your backend URL
-const API_BASE_URL = 'http://localhost:5000/api'
+import config from './config.js'
+
+// API base URL from config
+const API_BASE_URL = config.API_BASE_URL
 
 class JobApi {
   static async saveJob (jobData) {
