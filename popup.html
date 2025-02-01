@@ -205,58 +205,21 @@
       z-index: 100;
     }
 
-    .settings-section {
-      padding: 10px 0;
-      border-bottom: 1px solid #eee;
+    .website-option {
+      display: inline-block;
+      margin-right: 15px;
     }
 
-    .toggle-switch {
-      position: relative;
-      display: inline-flex;
+    .website-option label {
+      display: flex;
       align-items: center;
       cursor: pointer;
-    }
-
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .toggle-slider {
-      position: relative;
-      display: inline-block;
-      width: 40px;
-      height: 20px;
-      background-color: #ccc;
-      border-radius: 20px;
-      transition: .4s;
-      margin-right: 10px;
-    }
-
-    .toggle-slider:before {
-      position: absolute;
-      content: "";
-      height: 16px;
-      width: 16px;
-      left: 2px;
-      bottom: 2px;
-      background-color: white;
-      border-radius: 50%;
-      transition: .4s;
-    }
-
-    .toggle-switch input:checked+.toggle-slider {
-      background-color: #0073b1;
-    }
-
-    .toggle-switch input:checked+.toggle-slider:before {
-      transform: translateX(20px);
-    }
-
-    .toggle-label {
       font-size: 14px;
       color: #666;
+    }
+
+    .website-option input[type="checkbox"] {
+      margin-right: 5px;
     }
   </style>
 </head>
@@ -264,6 +227,8 @@
 <body>
   <div class="container">
     <h2>JobJourney Assistant</h2>
+
+    <div id="websiteOptions" style="margin: 5px 0 15px 0;"></div>
 
     <div class="search-section">
       <input type="text" id="location" placeholder="Enter location (e.g., Sydney)">
@@ -288,7 +253,7 @@
   </div>
 
   <!-- <script src="api/jobApi.js"></script> -->
-  <script src="popup.js"></script>
+  <script src="./popup.js" type="module"></script>
 </body>
 
 </html>

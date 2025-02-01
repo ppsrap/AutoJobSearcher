@@ -4,15 +4,13 @@
   "version": "1.0",
   "description": "Help you search and track job applications across multiple platforms",
   "permissions": [
-    "activeTab",
     "storage",
-    "scripting",
-    "tabs"
+    "activeTab"
   ],
   "host_permissions": [
-    "https://*.linkedin.com/*",
-    "https://*.seek.com.au/*",
-    "https://*.indeed.com/*"
+    "*://*.linkedin.com/*",
+    "*://*.indeed.com/*",
+    "*://*.seek.com.au/*"
   ],
   "action": {
     "default_icon": {
@@ -40,5 +38,20 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/*.js",
+        "src/config/*.js",
+        "src/services/*.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
   }
 }

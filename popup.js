@@ -1,4 +1,30 @@
-document.addEventListener('DOMContentLoaded', () => {
+import { supportedWebsites } from './websites.js'
+
+// Move checkbox change handler outside DOMContentLoaded
+const handleCheckboxChange = async (e) => {
+  if (e.target.type === 'checkbox' && e.target.closest('.website-option')) {
+    const newSettings = {}
+    supportedWebsites.forEach(website => {
+      const checkbox = document.getElementById(website.id)
+      if (checkbox) {
+        newSettings[website.id] = checkbox.checked
+      }
+    })
+    await chrome.storage.sync.set({ websiteSettings: newSettings })
+    const statusMessage = document.getElementById('statusMessage')
+    if (statusMessage) {
+      statusMessage.textContent = 'Settings saved'
+      statusMessage.className = 'status-message success'
+      statusMessage.style.display = 'block'
+      setTimeout(() => {
+        statusMessage.style.display = 'none'
+      }, 2000)
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('DOM Content Loaded')
   const locationInput = document.getElementById('location')
   const searchBtn = document.getElementById('searchBtn')
   const scrapeBtn = document.getElementById('scrapeBtn')
@@ -8,6 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const progressSection = document.getElementById('progressSection')
   const progressFill = document.getElementById('progressFill')
   const progressText = document.getElementById('progressText')
+  const websiteOptions = document.getElementById('websiteOptions')
+  console.log('websiteOptions element:', websiteOptions)
+  console.log('supportedWebsites:', supportedWebsites)
 
   let scrapedJobs = []
 
@@ -17,6 +46,37 @@ document.addEventListener('DOMContentLoaded', () => {
       locationInput.value = result.lastLocation
     }
   })
+
+  // Load saved settings
+  const settings = await chrome.storage.sync.get('websiteSettings')
+  const savedSettings = settings.websiteSettings || {}
+  console.log('savedSettings:', savedSettings)
+
+  // Create checkbox for each website
+  supportedWebsites.forEach(website => {
+    console.log('Creating checkbox for:', website.name)
+    const isEnabled = savedSettings[website.id] !== undefined ?
+      savedSettings[website.id] : website.enabled
+
+    const div = document.createElement('div')
+    div.className = 'website-option'
+
+    div.innerHTML = `
+      <label>
+        <input type="checkbox" 
+               id="${website.id}" 
+               ${isEnabled ? 'checked' : ''}>
+        ${website.name}
+      </label>
+    `
+    websiteOptions.appendChild(div)
+    console.log('Added checkbox for:', website.name)
+  })
+
+  // Add the change event listener to the websiteOptions container
+  if (websiteOptions) {
+    websiteOptions.addEventListener('change', handleCheckboxChange)
+  }
 
   function showMessage (message, isError = false) {
     statusMessage.textContent = message
@@ -199,22 +259,41 @@ document.addEventListener('DOMContentLoaded', () => {
     progressSection.style.display = 'block'
     updateProgress(0, 'Starting job search...')
 
+    // Get current website settings
+    const settings = await chrome.storage.sync.get('websiteSettings')
+    const savedSettings = settings.websiteSettings || {}
+    console.log('Current website settings:', savedSettings)
+
+    // Filter sites based on checkbox selection
     const sites = [
       {
+        id: 'linkedin',
         url: `https://www.linkedin.com/jobs/search?keywords=Full+Stack&location=${encodeURIComponent(location)}`,
         platform: 'LinkedIn'
       },
       {
+        id: 'seek',
         url: `https://www.seek.com.au/full-stack-jobs/in-${location.replace(/\s+/g, '-')}`,
         platform: 'SEEK'
       },
       {
+        id: 'indeed',
         url: `https://au.indeed.com/jobs?q=Full+Stack&l=${encodeURIComponent(location)}`,
         platform: 'Indeed'
       }
-    ]
+    ].filter(site => {
+      // Check if the checkbox for this site is checked
+      const checkbox = document.getElementById(site.id)
+      return checkbox && checkbox.checked
+    })
 
-    console.log('Sites to scrape:', sites)
+    if (sites.length === 0) {
+      showMessage('Please select at least one website', true)
+      progressSection.style.display = 'none'
+      return
+    }
+
+    console.log('Sites to scrape after filtering:', sites)
     let completedSites = 0
     const totalSites = sites.length
 
