@@ -319,55 +319,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     for (const site of sites) {
       console.log(`\n=== Processing ${site.platform} ===`)
-      console.log('URL:', site.url)
 
-      updateProgress(
-        (completedSites / totalSites) * 100,
-        `Opening ${site.platform}...`
-      )
-
-      // Create new tab in the main window
-      const tab = await new Promise(resolve => {
-        chrome.tabs.create({
-          url: site.url,
-          active: true,
-          windowId: mainWindow.id
-        }, resolve)
+      const tab = await chrome.tabs.create({
+        url: site.url,
+        windowId: mainWindow.id,
+        active: false
       })
-      console.log('Created tab:', tab.id)
 
-      // Bring extension window back to front after 500ms
-      setTimeout(() => {
-        chrome.windows.update(currentWindow.id, { focused: true })
-      }, 700)
-
-      // 等待页面加载
-      updateProgress(
-        (completedSites / totalSites) * 100,
-        `Waiting for ${site.platform} to load...`
-      )
-      console.log('Waiting for page load...')
       await waitForPageLoad(tab.id)
-      console.log('Page loaded')
 
-      // Additional wait for dynamic content
-      console.log('Waiting additional 5 seconds for dynamic content...')
-      await new Promise(resolve => setTimeout(resolve, 5000))
-      console.log('Additional wait completed')
+      // Update the LinkedIn scraping part in your search button handler
+      const jobs = site.platform === 'LinkedIn'
+        ? await new Promise((resolve) => {
+          chrome.tabs.sendMessage(tab.id, { action: 'scrapeLinkedIn' }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error('Error:', chrome.runtime.lastError)
+              resolve([])
+            } else {
+              console.log('LinkedIn jobs received:', response?.jobs?.length)
+              resolve(response?.jobs || [])
+            }
+          })
+        })
+        : await scrapeFromTab(tab)
 
-      // 爬取数据
-      updateProgress(
-        (completedSites / totalSites) * 100,
-        `Scraping from ${site.platform}...`
-      )
-      console.log('Starting scraping...')
-      const jobs = await scrapeFromTab(tab)
-      console.log(`Scraped ${jobs.length} jobs from ${site.platform}:`, jobs)
       scrapedJobs.push(...jobs)
-
-      // 关闭标签页
-      // chrome.tabs.remove(tab.id)
-      // console.log('Closed tab:', tab.id)
 
       completedSites++
       showMessage(`Scraped ${jobs.length} jobs from ${site.platform}`)

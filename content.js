@@ -632,6 +632,128 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
   }
 
+  if (request.action === 'scrapeLinkedIn') {
+    let hasResponded = false
+
+    // Start the pagination scraping process
+    scrapeAllLinkedInPages()
+      .then(allJobs => {
+        if (!hasResponded) {
+          console.log('All LinkedIn pages scraped, sending response with', allJobs.length, 'jobs')
+          sendResponse({ jobs: allJobs })
+          hasResponded = true
+        }
+      })
+      .catch(error => {
+        if (!hasResponded) {
+          console.error('Error during LinkedIn scraping:', error)
+          sendResponse({ jobs: [] })
+          hasResponded = true
+        }
+      })
+
+    return true // Keep the message channel open
+  }
+
   // Required for async response
   return true
-}) 
+})
+
+async function scrapeAllLinkedInPages () {
+  let allJobs = []
+  let currentPage = 1
+
+  while (true) {
+    try {
+      console.log(`Scraping LinkedIn page ${currentPage}`)
+      await waitForJobCards()
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Scrape current page and add to allJobs
+      const jobs = scrapers.linkedin.scrapeJobList()
+      allJobs.push(...jobs)  // Add jobs to total collection
+      console.log(`Found ${jobs.length} jobs on current page`)
+
+      const shouldContinue = await checkAndNavigateToNextPage()
+      if (!shouldContinue) {
+        console.log('Reached last page or no more pages available')
+        break
+      }
+
+      await waitForPageTransition()
+      currentPage++
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    } catch (error) {
+      console.error('Error during page scraping:', error)
+      break
+    }
+  }
+
+  // Return all collected jobs at the end
+  console.log(`LinkedIn scraping complete. Total jobs: ${allJobs.length} across ${currentPage} pages`)
+  return allJobs
+}
+
+// Helper function to wait for job cards to be visible
+async function waitForJobCards (timeout = 5000) {
+  const startTime = Date.now()
+
+  while (Date.now() - startTime < timeout) {
+    const jobCards = document.querySelectorAll('div.job-card-container')
+    if (jobCards.length > 0) {
+      console.log(`Found ${jobCards.length} job cards`)
+      return true
+    }
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }
+
+  throw new Error('Timeout waiting for job cards')
+}
+
+// Helper function to wait for page transition
+async function waitForPageTransition () {
+  // Wait for the old content to be removed
+  await new Promise(resolve => setTimeout(resolve, 1000))
+
+  // Wait for new content to load
+  return waitForJobCards()
+}
+
+async function checkAndNavigateToNextPage () {
+  try {
+    // Find the currently selected page
+    const selectedPage = document.querySelector('.artdeco-pagination__indicator--number.active.selected')
+    if (!selectedPage) {
+      console.log('No selected page found')
+      return false
+    }
+
+    // Get the next element after the selected page
+    const nextElement = selectedPage.nextElementSibling
+    if (!nextElement) {
+      console.log('No next element found')
+      return false
+    }
+
+    // Check if we're at the last page
+    const isLastPage = selectedPage.querySelector('[data-test-pagination-page-btn]')?.getAttribute('data-test-pagination-page-btn') === '40'
+    if (isLastPage) {
+      console.log('Reached last page (40)')
+      return false
+    }
+
+    // Find the next button to click (either numbered or ellipsis)
+    const nextButton = nextElement.querySelector('button')
+    if (!nextButton) {
+      console.log('No next button found')
+      return false
+    }
+
+    console.log('Clicking next page button:', nextButton.getAttribute('aria-label'))
+    nextButton.click()
+    return true
+  } catch (error) {
+    console.error('Error in checkAndNavigateToNextPage:', error)
+    return false
+  }
+} 
