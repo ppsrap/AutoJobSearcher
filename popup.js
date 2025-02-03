@@ -269,20 +269,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       {
         id: 'linkedin',
         url: `https://www.linkedin.com/jobs/search?keywords=Full+Stack&location=${encodeURIComponent(location)}`,
-        platform: 'LinkedIn'
+        platform: 'LinkedIn',
+        action: 'scrapeLinkedIn'
       },
       {
         id: 'seek',
         url: `https://www.seek.com.au/full-stack-jobs/in-${location.replace(/\s+/g, '-')}`,
-        platform: 'SEEK'
+        platform: 'SEEK',
+        action: 'scrapeSEEK'
       },
       {
         id: 'indeed',
         url: `https://au.indeed.com/jobs?q=Full+Stack&l=${encodeURIComponent(location)}`,
-        platform: 'Indeed'
+        platform: 'Indeed',
+        action: 'scrapeJobs'
       }
     ].filter(site => {
-      // Check if the checkbox for this site is checked
       const checkbox = document.getElementById(site.id)
       return checkbox && checkbox.checked
     })
@@ -328,20 +330,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       await waitForPageLoad(tab.id)
 
-      // Update the LinkedIn scraping part in your search button handler
-      const jobs = site.platform === 'LinkedIn'
-        ? await new Promise((resolve) => {
-          chrome.tabs.sendMessage(tab.id, { action: 'scrapeLinkedIn' }, (response) => {
-            if (chrome.runtime.lastError) {
-              console.error('Error:', chrome.runtime.lastError)
-              resolve([])
-            } else {
-              console.log('LinkedIn jobs received:', response?.jobs?.length)
-              resolve(response?.jobs || [])
-            }
-          })
+      // Update scraping based on platform
+      const jobs = await new Promise((resolve) => {
+        chrome.tabs.sendMessage(tab.id, { action: site.action }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Error:', chrome.runtime.lastError)
+            resolve([])
+          } else {
+            console.log(`${site.platform} jobs received:`, response?.jobs?.length || response?.data?.length)
+            resolve(response?.jobs || response?.data || [])
+          }
         })
-        : await scrapeFromTab(tab)
+      })
 
       scrapedJobs.push(...jobs)
 

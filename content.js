@@ -632,21 +632,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
   }
 
-  if (request.action === 'scrapeLinkedIn') {
+  if (request.action === 'scrapeSEEK') {
     let hasResponded = false
 
-    // Start the pagination scraping process
-    scrapeAllLinkedInPages()
+    // Start the pagination scraping process for SEEK
+    scrapeAllSEEKPages()
       .then(allJobs => {
         if (!hasResponded) {
-          console.log('All LinkedIn pages scraped, sending response with', allJobs.length, 'jobs')
+          console.log('All SEEK pages scraped, sending response with', allJobs.length, 'jobs')
           sendResponse({ jobs: allJobs })
           hasResponded = true
         }
       })
       .catch(error => {
         if (!hasResponded) {
-          console.error('Error during LinkedIn scraping:', error)
+          console.error('Error during SEEK scraping:', error)
           sendResponse({ jobs: [] })
           hasResponded = true
         }
@@ -659,101 +659,89 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true
 })
 
-async function scrapeAllLinkedInPages () {
+async function scrapeAllSEEKPages () {
   let allJobs = []
   let currentPage = 1
 
   while (true) {
     try {
-      console.log(`Scraping LinkedIn page ${currentPage}`)
-      await waitForJobCards()
+      console.log(`Scraping SEEK page ${currentPage}`)
+      await waitForSEEKJobCards()
       await new Promise(resolve => setTimeout(resolve, 2000))
 
       // Scrape current page and add to allJobs
-      const jobs = scrapers.linkedin.scrapeJobList()
-      allJobs.push(...jobs)  // Add jobs to total collection
+      const jobs = scrapers.seek.scrapeJobList()
+      allJobs.push(...jobs)
       console.log(`Found ${jobs.length} jobs on current page`)
 
-      const shouldContinue = await checkAndNavigateToNextPage()
+      const shouldContinue = await checkAndNavigateToNextPageSEEK()
       if (!shouldContinue) {
         console.log('Reached last page or no more pages available')
         break
       }
 
-      await waitForPageTransition()
+      await waitForSEEKPageTransition()
       currentPage++
       await new Promise(resolve => setTimeout(resolve, 2000))
     } catch (error) {
-      console.error('Error during page scraping:', error)
+      console.error('Error during SEEK page scraping:', error)
       break
     }
   }
 
-  // Return all collected jobs at the end
-  console.log(`LinkedIn scraping complete. Total jobs: ${allJobs.length} across ${currentPage} pages`)
+  console.log(`SEEK scraping complete. Total jobs: ${allJobs.length} across ${currentPage} pages`)
   return allJobs
 }
 
-// Helper function to wait for job cards to be visible
-async function waitForJobCards (timeout = 5000) {
+// Helper function to wait for SEEK job cards
+async function waitForSEEKJobCards (timeout = 5000) {
   const startTime = Date.now()
+  const selectors = [
+    '[data-testid="job-card"]',
+    'article[data-card-type="JobCard"]',
+    'article[role="article"]',
+    '[data-automation="job-card"]'
+  ]
 
   while (Date.now() - startTime < timeout) {
-    const jobCards = document.querySelectorAll('div.job-card-container')
-    if (jobCards.length > 0) {
-      console.log(`Found ${jobCards.length} job cards`)
-      return true
+    for (const selector of selectors) {
+      const jobCards = document.querySelectorAll(selector)
+      if (jobCards.length > 0) {
+        console.log(`Found ${jobCards.length} SEEK job cards using selector: ${selector}`)
+        return true
+      }
     }
     await new Promise(resolve => setTimeout(resolve, 500))
   }
 
-  throw new Error('Timeout waiting for job cards')
+  throw new Error('Timeout waiting for SEEK job cards')
 }
 
-// Helper function to wait for page transition
-async function waitForPageTransition () {
-  // Wait for the old content to be removed
+// Helper function to wait for SEEK page transition
+async function waitForSEEKPageTransition () {
   await new Promise(resolve => setTimeout(resolve, 1000))
-
-  // Wait for new content to load
-  return waitForJobCards()
+  return waitForSEEKJobCards()
 }
 
-async function checkAndNavigateToNextPage () {
+// Function to check and navigate to next page for SEEK
+async function checkAndNavigateToNextPageSEEK () {
   try {
-    // Find the currently selected page
-    const selectedPage = document.querySelector('.artdeco-pagination__indicator--number.active.selected')
-    if (!selectedPage) {
-      console.log('No selected page found')
-      return false
-    }
+    // Find the next button using SEEK's specific selector
+    const nextButton = document.querySelector('a[rel="nofollow next"][data-automation^="page-"]')
 
-    // Get the next element after the selected page
-    const nextElement = selectedPage.nextElementSibling
-    if (!nextElement) {
-      console.log('No next element found')
-      return false
-    }
-
-    // Check if we're at the last page
-    const isLastPage = selectedPage.querySelector('[data-test-pagination-page-btn]')?.getAttribute('data-test-pagination-page-btn') === '40'
-    if (isLastPage) {
-      console.log('Reached last page (40)')
-      return false
-    }
-
-    // Find the next button to click (either numbered or ellipsis)
-    const nextButton = nextElement.querySelector('button')
     if (!nextButton) {
-      console.log('No next button found')
+      console.log('No next button found on SEEK page')
       return false
     }
 
-    console.log('Clicking next page button:', nextButton.getAttribute('aria-label'))
+    console.log('Found SEEK next button:', nextButton)
+    console.log('Next button URL:', nextButton.href)
+
+    // Click the next button
     nextButton.click()
     return true
   } catch (error) {
-    console.error('Error in checkAndNavigateToNextPage:', error)
+    console.error('Error in checkAndNavigateToNextPageSEEK:', error)
     return false
   }
-} 
+}
