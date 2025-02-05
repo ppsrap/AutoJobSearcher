@@ -41,6 +41,7 @@ chrome.action.onClicked.addListener(async () => {
       left: Math.max(0, rightmostWindow.left + rightmostWindow.width - 450) // Position at the right of the screen
     }, (window) => {
       popupWindowId = window.id
+      chrome.windows.update(popupWindowId, { focused: true }) // Ensure the window is focused
     })
   })
 })
@@ -62,7 +63,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     ]
 
     sites.forEach(url => {
-      chrome.tabs.create({ url })
+      chrome.tabs.create({ url, active: true }) // Ensures the tab is focused
     })
 
     sendResponse({ success: true })

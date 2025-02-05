@@ -209,14 +209,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function scrapeFromTab (tab) {
     return new Promise((resolve) => {
       chrome.tabs.sendMessage(tab.id, { action: 'scrapeJobs' }, (response) => {
+        console.group('Tab Scraping Debug')
+        console.log('Tab URL:', tab.url)
+        console.log('Initial response:', response)
+
         if (chrome.runtime.lastError) {
           console.error(`Error with tab ${tab.id}:`, chrome.runtime.lastError)
+          console.groupEnd()
           resolve([])
         } else if (response && response.success) {
-          // 对爬取到的工作进行去重
-          const uniqueJobs = removeDuplicateJobs(response.data)
+          console.log('response:', response)
+          const jobs = response.data || []
+
+          // Remove duplicates
+          console.log('Total jobs before deduplication:', jobs.length)
+          const uniqueJobs = removeDuplicateJobs(jobs)
+          console.log('Total jobs after deduplication:', uniqueJobs.length)
+          console.groupEnd()
           resolve(uniqueJobs)
         } else {
+          console.groupEnd()
           resolve([])
         }
       })
@@ -236,6 +248,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     })
   }
 
+  // Add new function to handle Indeed pagination
+  async function scrapeIndeedJobs (tab) {
+    let allJobs = []
+
+    // Get the current tab info to ensure we have the URL
+    const currentTab = await chrome.tabs.get(tab.id)
+    let currentUrl = currentTab.url
+    console.log("Initial currentUrl:", currentUrl)
+
+    while (currentUrl) {
+      console.log("Loop start - currentUrl:", currentUrl)
+      // Update tab URL if not first page
+      if (currentUrl !== currentTab.url) {
+        console.log("Updating tab URL to:", currentUrl)
+        await chrome.tabs.update(tab.id, { url: currentUrl })
+        await waitForPageLoad(tab.id)
+      }
+
+      // Scrape current page
+      const response = await new Promise(resolve => {
+        chrome.tabs.sendMessage(tab.id, { action: 'scrapeJobs' }, resolve)
+      })
+      console.log("Scraping response:", response)
+
+      if (response && response.success) {
+        console.log("Jobs found:", response.data.length)
+        console.log("Next URL:", response.nextUrl)
+        allJobs.push(...response.data)
+        currentUrl = response.nextUrl
+      } else {
+        console.log("No success in response or error occurred")
+        break
+      }
+    }
+
+    // Add deduplication before returning
+    console.log('Total Indeed jobs before deduplication:', allJobs.length)
+    const uniqueJobs = removeDuplicateJobs(allJobs)
+    console.log('Total Indeed jobs after deduplication:', uniqueJobs.length)
+    return uniqueJobs
+  }
+
+  // Update search button click handler
   searchBtn.addEventListener('click', async () => {
     const location = locationInput.value.trim()
 
@@ -330,21 +385,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       await waitForPageLoad(tab.id)
 
-      // Update scraping based on platform
-      const jobs = await new Promise((resolve) => {
-        chrome.tabs.sendMessage(tab.id, { action: site.action }, (response) => {
-          if (chrome.runtime.lastError) {
-            console.error('Error:', chrome.runtime.lastError)
-            resolve([])
-          } else {
-            console.log(`${site.platform} jobs received:`, response?.jobs?.length || response?.data?.length)
-            resolve(response?.jobs || response?.data || [])
-          }
-        })
-      })
+      // Handle Indeed differently
+      let jobs = []
+      if (site.platform === 'Indeed') {
+        console.log("herehere")
+        jobs = await scrapeIndeedJobs(tab)
+      } else {
+        jobs = await scrapeFromTab(tab)
+      }
 
       scrapedJobs.push(...jobs)
-
       completedSites++
       showMessage(`Scraped ${jobs.length} jobs from ${site.platform}`)
 
@@ -374,4 +424,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     downloadExcel(scrapedJobs)
     showMessage('Jobs downloaded successfully!')
   })
+})
+
+// Update message listener in content.js
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Received message:', request)
+
+  if (request.action === 'getNextPageUrl') {
+    const platform = Object.values(scrapers).find(s => s.isMatch(window.location.href))
+    if (platform && platform.getNextPageUrl) {
+      const nextUrl = platform.getNextPageUrl()
+      sendResponse({ nextUrl })
+    } else {
+      sendResponse({ nextUrl: null })
+    }
+    return true
+  }
+
+  // ... existing message handling code ...
 }) 

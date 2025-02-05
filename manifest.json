@@ -30,6 +30,7 @@
         "https://*.indeed.com/*"
       ],
       "js": [
+        "helpers/jobScrapers.js",
         "content.js"
       ]
     }
