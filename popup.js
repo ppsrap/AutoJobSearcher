@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const searchBtn = document.getElementById('searchBtn')
   const scrapeBtn = document.getElementById('scrapeBtn')
   const downloadBtn = document.getElementById('downloadBtn')
+  const showInJobJourneyBtn = document.getElementById('showInJobJourneyBtn')
   const jobList = document.getElementById('jobList')
   const statusMessage = document.getElementById('statusMessage')
   const progressSection = document.getElementById('progressSection')
@@ -290,6 +291,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     return uniqueJobs
   }
 
+  // Add show in JobJourney button handler
+  showInJobJourneyBtn.addEventListener('click', async () => {
+    console.log('Show in JobJourney button clicked')
+    console.log('Jobs to send:', scrapedJobs)
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'openJobJourney',
+        jobs: scrapedJobs
+      })
+      console.log('Response from openJobJourney:', response)
+
+      if (response && response.success) {
+        showMessage('Opening jobs in JobJourney...')
+      } else {
+        showMessage('Failed to open JobJourney', true)
+        console.error('Failed to open JobJourney:', response)
+      }
+    } catch (error) {
+      console.error('Error sending jobs to JobJourney:', error)
+      showMessage('Error opening JobJourney', true)
+    }
+  })
+
+  // Enable/disable showInJobJourneyBtn along with downloadBtn
+  const updateButtonStates = (hasJobs) => {
+    downloadBtn.disabled = !hasJobs
+    showInJobJourneyBtn.disabled = !hasJobs
+  }
+
   // Update search button click handler
   searchBtn.addEventListener('click', async () => {
     const location = locationInput.value.trim()
@@ -410,7 +441,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Total jobs scraped:', scrapedJobs.length)
     updateProgress(100, `Scraped ${scrapedJobs.length} jobs from ${totalSites} sites`)
     showMessage(`Successfully scraped ${scrapedJobs.length} jobs!`)
-    downloadBtn.disabled = scrapedJobs.length === 0
+    updateButtonStates(scrapedJobs.length > 0)
 
     // Focus back on the extension window at the end
     chrome.windows.update(currentWindow.id, { focused: true })
