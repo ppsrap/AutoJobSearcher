@@ -35,6 +35,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const progressSection = document.getElementById('progressSection')
   const progressFill = document.getElementById('progressFill')
   const progressText = document.getElementById('progressText')
+  const progressDetail = document.getElementById('progressDetail')
+  const overlay = document.getElementById('overlay')
+  const overlayText = document.getElementById('overlayText')
+  const overlayDetail = document.getElementById('overlayDetail')
   const websiteOptions = document.getElementById('websiteOptions')
   console.log('websiteOptions element:', websiteOptions)
   console.log('supportedWebsites:', supportedWebsites)
@@ -44,7 +48,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load last used location from storage
   chrome.storage.local.get(['lastLocation'], (result) => {
     if (result.lastLocation) {
-      locationInput.value = result.lastLocation
+      const locationSelect = document.getElementById('location')
+      // Find and select the option that matches the last location
+      const options = Array.from(locationSelect.options)
+      const matchingOption = options.find(option => option.value === result.lastLocation)
+      if (matchingOption) {
+        locationSelect.value = result.lastLocation
+      }
     }
   })
 
@@ -88,9 +98,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 2000)
   }
 
-  function updateProgress (percent, text) {
+  function showOverlay (show) {
+    overlay.style.display = show ? 'flex' : 'none'
+    // Disable all interactive elements when overlay is shown
+    const interactiveElements = document.querySelectorAll('button, input, select')
+    interactiveElements.forEach(element => {
+      element.disabled = show
+    })
+  }
+
+  function updateProgress (percent, text, detail) {
     progressFill.style.width = `${percent}%`
     progressText.textContent = text
+    if (detail) {
+      progressDetail.textContent = detail
+      overlayDetail.textContent = detail
+    }
+    overlayText.textContent = text
   }
 
   function createJobCard (job) {
@@ -249,45 +273,70 @@ document.addEventListener('DOMContentLoaded', async () => {
     })
   }
 
-  // Add new function to handle Indeed pagination
-  async function scrapeIndeedJobs (tab) {
+  // Generic function to handle pagination for any platform
+  async function scrapeWithPagination (tab, platform, callback) {
     let allJobs = []
+    let pageNum = 1
 
-    // Get the current tab info to ensure we have the URL
-    const currentTab = await chrome.tabs.get(tab.id)
-    let currentUrl = currentTab.url
-    console.log("Initial currentUrl:", currentUrl)
+    try {
+      // Get the current tab info to ensure we have the URL
+      const currentTab = await chrome.tabs.get(tab.id)
+      let currentUrl = currentTab.url
+      console.log(`Initial ${platform} URL:`, currentUrl)
 
-    while (currentUrl) {
-      console.log("Loop start - currentUrl:", currentUrl)
-      // Update tab URL if not first page
-      if (currentUrl !== currentTab.url) {
-        console.log("Updating tab URL to:", currentUrl)
-        await chrome.tabs.update(tab.id, { url: currentUrl })
-        await waitForPageLoad(tab.id)
-      }
+      while (currentUrl) {
+        console.log(`${platform} - Processing page ${pageNum}, URL:`, currentUrl)
 
-      // Scrape current page
-      const response = await new Promise(resolve => {
-        chrome.tabs.sendMessage(tab.id, { action: 'scrapeJobs' }, resolve)
-      })
-      console.log("Scraping response:", response)
+        // Check if tab still exists
+        try {
+          await chrome.tabs.get(tab.id)
+        } catch (error) {
+          console.log(`Tab was closed for ${platform}, returning collected jobs`)
+          return allJobs
+        }
 
-      if (response && response.success) {
-        console.log("Jobs found:", response.data.length)
-        console.log("Next URL:", response.nextUrl)
+        // Update tab URL if not first page
+        if (currentUrl !== currentTab.url) {
+          console.log("Updating tab URL to:", currentUrl)
+          await chrome.tabs.update(tab.id, { url: currentUrl })
+          await waitForPageLoad(tab.id)
+        }
+
+        // Update progress with current page number
+        callback(pageNum)
+
+        // Scrape current page
+        const response = await new Promise(resolve => {
+          chrome.tabs.sendMessage(tab.id, { action: 'scrapeJobs' }, (response) => {
+            if (chrome.runtime.lastError) {
+              // Tab was closed or errored
+              resolve({ success: false, error: chrome.runtime.lastError })
+            } else {
+              resolve(response)
+            }
+          })
+        })
+
+        if (!response || !response.success) {
+          console.log(`${platform} - Tab closed or error occurred`)
+          break
+        }
+
+        console.log(`${platform} scraping response:`, response)
+        console.log(`${platform} jobs found:`, response.data.length)
+        console.log(`${platform} next URL:`, response.nextUrl)
+
         allJobs.push(...response.data)
         currentUrl = response.nextUrl
-      } else {
-        console.log("No success in response or error occurred")
-        break
+        pageNum++
       }
+    } catch (error) {
+      console.log(`Error during ${platform} scraping:`, error)
     }
 
-    // Add deduplication before returning
-    console.log('Total Indeed jobs before deduplication:', allJobs.length)
+    console.log(`Total ${platform} jobs before deduplication:`, allJobs.length)
     const uniqueJobs = removeDuplicateJobs(allJobs)
-    console.log('Total Indeed jobs after deduplication:', uniqueJobs.length)
+    console.log(`Total ${platform} jobs after deduplication:`, uniqueJobs.length)
     return uniqueJobs
   }
 
@@ -323,15 +372,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Update search button click handler
   searchBtn.addEventListener('click', async () => {
-    const location = locationInput.value.trim()
+    const locationSelect = document.getElementById('location')
+    const searchInput = document.getElementById('searchInput')
+    const location = locationSelect.value.trim()
+    const searchTerm = searchInput.value.trim()
 
     if (!location) {
-      showMessage('Please enter a location', true)
+      showMessage('Please select a location', true)
+      return
+    }
+
+    if (!searchTerm) {
+      showMessage('Please enter search keywords', true)
       return
     }
 
     console.log('=== Starting Job Search ===')
+    console.log('Search Term:', searchTerm)
     console.log('Location:', location)
+
+    // Show overlay and disable interaction
+    showOverlay(true)
 
     // Save location to storage
     chrome.storage.local.set({ lastLocation: location })
@@ -345,106 +406,148 @@ document.addEventListener('DOMContentLoaded', async () => {
     progressSection.style.display = 'block'
     updateProgress(0, 'Starting job search...')
 
-    // Get current website settings
-    const settings = await chrome.storage.sync.get('websiteSettings')
-    const savedSettings = settings.websiteSettings || {}
-    console.log('Current website settings:', savedSettings)
+    try {
+      // Get current website settings
+      const settings = await chrome.storage.sync.get('websiteSettings')
+      const savedSettings = settings.websiteSettings || {}
+      console.log('Current website settings:', savedSettings)
 
-    // Filter sites based on checkbox selection
-    const sites = [
-      {
-        id: 'linkedin',
-        url: `https://www.linkedin.com/jobs/search?keywords=Full+Stack&location=${encodeURIComponent(location)}`,
-        platform: 'LinkedIn',
-        action: 'scrapeLinkedIn'
-      },
-      {
-        id: 'seek',
-        url: `https://www.seek.com.au/full-stack-jobs/in-${location.replace(/\s+/g, '-')}`,
-        platform: 'SEEK',
-        action: 'scrapeSEEK'
-      },
-      {
-        id: 'indeed',
-        url: `https://au.indeed.com/jobs?q=Full+Stack&l=${encodeURIComponent(location)}`,
-        platform: 'Indeed',
-        action: 'scrapeJobs'
-      }
-    ].filter(site => {
-      const checkbox = document.getElementById(site.id)
-      return checkbox && checkbox.checked
-    })
+      // Format search term for SEEK URL
+      const seekSearchTerm = searchTerm.toLowerCase().replace(/\s+/g, '-')
 
-    if (sites.length === 0) {
-      showMessage('Please select at least one website', true)
-      progressSection.style.display = 'none'
-      return
-    }
-
-    console.log('Sites to scrape after filtering:', sites)
-    let completedSites = 0
-    const totalSites = sites.length
-
-    // Get all windows to find the main browser window
-    const windows = await new Promise(resolve => {
-      chrome.windows.getAll({ windowTypes: ['normal'] }, resolve)
-    })
-    console.log('Found browser windows:', windows.length)
-
-    // Find the main browser window (usually the first normal window)
-    const mainWindow = windows.find(w => w.type === 'normal')
-    if (!mainWindow) {
-      console.error('No main browser window found')
-      showMessage('Could not find main browser window', true)
-      return
-    }
-    console.log('Selected main window:', mainWindow.id)
-
-    // Get the current extension window
-    const currentWindow = await new Promise(resolve => {
-      chrome.windows.getCurrent(resolve)
-    })
-
-    for (const site of sites) {
-      console.log(`\n=== Processing ${site.platform} ===`)
-
-      const tab = await chrome.tabs.create({
-        url: site.url,
-        windowId: mainWindow.id,
-        active: false
+      // Filter sites based on checkbox selection
+      const sites = [
+        {
+          id: 'linkedin',
+          url: `https://www.linkedin.com/jobs/search?keywords=${encodeURIComponent(searchTerm)}&location=${encodeURIComponent(location)}`,
+          platform: 'LinkedIn',
+          action: 'scrapeLinkedIn'
+        },
+        {
+          id: 'seek',
+          url: `https://www.seek.com.au/${seekSearchTerm}-jobs/in-${location.split(',')[0].toLowerCase().replace(/\s+/g, '-')}`,
+          platform: 'SEEK',
+          action: 'scrapeSEEK'
+        },
+        {
+          id: 'indeed',
+          url: `https://au.indeed.com/jobs?q=${encodeURIComponent(searchTerm)}&l=${encodeURIComponent(location)}`,
+          platform: 'Indeed',
+          action: 'scrapeJobs'
+        }
+      ].filter(site => {
+        const checkbox = document.getElementById(site.id)
+        return checkbox && checkbox.checked
       })
 
-      await waitForPageLoad(tab.id)
-
-      // Handle Indeed differently
-      let jobs = []
-      if (site.platform === 'Indeed') {
-        console.log("herehere")
-        jobs = await scrapeIndeedJobs(tab)
-      } else {
-        jobs = await scrapeFromTab(tab)
+      if (sites.length === 0) {
+        showMessage('Please select at least one website', true)
+        progressSection.style.display = 'none'
+        showOverlay(false)
+        return
       }
 
-      scrapedJobs.push(...jobs)
-      completedSites++
-      showMessage(`Scraped ${jobs.length} jobs from ${site.platform}`)
+      console.log('Sites to scrape after filtering:', sites)
+      let completedSites = 0
+      const totalSites = sites.length
 
-      // Update UI
-      jobList.innerHTML = ''
-      scrapedJobs.forEach(job => {
-        jobList.appendChild(createJobCard(job))
-      })
-      console.log(`Completed ${site.platform} processing\n`)
+      // Get all windows to find the main browser window
+      const windows = await chrome.windows.getAll({ windowTypes: ['normal'] })
+      console.log('Found browser windows:', windows.length)
+
+      const mainWindow = windows.find(w => w.type === 'normal')
+      if (!mainWindow) {
+        throw new Error('Could not find main browser window')
+      }
+
+      // Get the current extension window
+      const currentWindow = await chrome.windows.getCurrent()
+
+      for (const site of sites) {
+        console.log(`\n=== Processing ${site.platform} ===`)
+        const progress = (completedSites / totalSites) * 100
+        updateProgress(
+          progress,
+          `Scraping ${site.platform}...`,
+          `Starting scrape for ${site.platform}`
+        )
+
+        const tab = await chrome.tabs.create({
+          url: site.url,
+          windowId: mainWindow.id,
+          active: true
+        })
+
+        // Add tab close listener
+        const tabClosedPromise = new Promise(resolve => {
+          const listener = (tabId) => {
+            if (tabId === tab.id) {
+              chrome.tabs.onRemoved.removeListener(listener)
+              resolve()
+            }
+          }
+          chrome.tabs.onRemoved.addListener(listener)
+        })
+
+        try {
+          await waitForPageLoad(tab.id)
+
+          // Race between scraping and tab closure
+          const jobs = await Promise.race([
+            scrapeWithPagination(tab, site.platform, (currentPage) => {
+              updateProgress(
+                progress,
+                `Scraping ${site.platform}...`,
+                `Processing page ${currentPage} in ${site.platform}`
+              )
+            }),
+            tabClosedPromise.then(() => {
+              console.log(`Tab closed for ${site.platform}`)
+              return [] // Return empty array if tab was closed
+            })
+          ])
+
+          scrapedJobs.push(...jobs)
+          completedSites++
+          const progressPercent = (completedSites / totalSites) * 100
+          updateProgress(
+            progressPercent,
+            `Completed ${site.platform}`,
+            `Found ${jobs.length} jobs from ${site.platform}`
+          )
+          showMessage(`Scraped ${jobs.length} jobs from ${site.platform}`)
+
+          // Update UI
+          jobList.innerHTML = ''
+          scrapedJobs.forEach(job => {
+            jobList.appendChild(createJobCard(job))
+          })
+        } catch (error) {
+          console.error(`Error processing ${site.platform}:`, error)
+          completedSites++
+        }
+      }
+
+      console.log('=== Scraping Complete ===')
+      console.log('Total jobs scraped:', scrapedJobs.length)
+      updateProgress(
+        100,
+        `Scraping Complete!`,
+        `Found ${scrapedJobs.length} jobs from ${totalSites} sites`
+      )
+      showMessage(`Successfully scraped ${scrapedJobs.length} jobs!`)
+      updateButtonStates(scrapedJobs.length > 0)
+
+    } catch (error) {
+      console.error('Error during scraping:', error)
+      showMessage('An error occurred during scraping', true)
+      updateProgress(0, 'Scraping failed', error.message)
+    } finally {
+      // Hide overlay and re-enable interaction
+      showOverlay(false)
+      // Focus back on the extension window at the end
+      chrome.windows.update(currentWindow.id, { focused: true })
     }
-
-    console.log('=== Scraping Complete ===')
-    console.log('Total jobs scraped:', scrapedJobs.length)
-    updateProgress(100, `Scraped ${scrapedJobs.length} jobs from ${totalSites} sites`)
-    showMessage(`Successfully scraped ${scrapedJobs.length} jobs!`)
-    updateButtonStates(scrapedJobs.length > 0)
-
-    // Focus back on the extension window at the end
-    chrome.windows.update(currentWindow.id, { focused: true })
   })
 
   downloadBtn.addEventListener('click', () => {

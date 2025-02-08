@@ -73,120 +73,105 @@ const scrapers = {
     isMatch: (url) => url.includes('linkedin.com'),
     scrapeJobList: async () => {
       let jobs = []
-      let currentPage = 1
-      const MAX_PAGES = 40
       console.log('=== LinkedIn Scraping Started ===')
       console.log('Current URL:', window.location.href)
-      console.log('Document ready state:', document.readyState)
 
-      while (currentPage <= MAX_PAGES) {
-        // Updated selectors for the rendered page
-        const jobNodes = document.querySelectorAll('div.job-card-container')
-        console.log('Found LinkedIn job nodes:', jobNodes.length)
+      // Updated selectors for the rendered page
+      const jobNodes = document.querySelectorAll('div.job-card-container')
+      console.log('Found LinkedIn job nodes:', jobNodes.length)
 
-        jobNodes.forEach((node, index) => {
-          try {
-            console.log(`\nProcessing LinkedIn job ${index + 1}:`)
+      jobNodes.forEach(node => {
+        try {
+          console.log(`\nProcessing LinkedIn job:`)
 
-            // Updated selectors based on the actual page structure
-            const titleNode = node.querySelector('.job-card-list__title--link')
-            const companyNode = node.querySelector('.artdeco-entity-lockup__subtitle span')
-            const locationNode = node.querySelector('.artdeco-entity-lockup__caption span[dir="ltr"]')
-            const jobUrlNode = node.querySelector('.job-card-list__title--link')
-            const logoNode = node.querySelector('.ivm-image-view-model img')
+          // Updated selectors based on the actual page structure
+          const titleNode = node.querySelector('.job-card-list__title--link')
+          const companyNode = node.querySelector('.artdeco-entity-lockup__subtitle span')
+          const locationNode = node.querySelector('.artdeco-entity-lockup__caption span[dir="ltr"]')
+          const jobUrlNode = node.querySelector('.job-card-list__title--link')
+          const logoNode = node.querySelector('.ivm-image-view-model img')
 
-            // Get metadata items for salary and job type
-            const metadataItems = Array.from(node.querySelectorAll('.artdeco-entity-lockup__metadata li span[dir="ltr"]'))
-              .map(el => el.textContent.trim())
-              .filter(text => text)
+          // Get metadata items for salary and job type
+          const metadataItems = Array.from(node.querySelectorAll('.artdeco-entity-lockup__metadata li span[dir="ltr"]'))
+            .map(el => el.textContent.trim())
+            .filter(text => text)
 
-            // Find salary (item containing currency symbols or ranges)
-            const salaryText = metadataItems.find(text =>
-              /[$€£¥]|per\s+|annum|annual|year|month|hour|week/i.test(text)
-            )
+          // Find salary (item containing currency symbols or ranges)
+          const salaryText = metadataItems.find(text =>
+            /[$€£¥]|per\s+|annum|annual|year|month|hour|week/i.test(text)
+          )
 
-            // Get job description from the job details section
-            const descriptionNode = node.querySelector('.job-card-container__description, .job-card-list__description')
-            const description = descriptionNode?.textContent?.trim()
-              .replace(/\s+/g, ' ')  // Normalize whitespace
-              .trim()
+          // Get job description from the job details section
+          const descriptionNode = node.querySelector('.job-card-container__description, .job-card-list__description')
+          const description = descriptionNode?.textContent?.trim()
+            .replace(/\s+/g, ' ')  // Normalize whitespace
+            .trim()
 
-            // Get posted date
-            const postedDateNode = node.querySelector('time, .job-card-container__listed-time, span.job-card-container__footer-item--time')
+          // Get posted date
+          const postedDateNode = node.querySelector('time, .job-card-container__listed-time, span.job-card-container__footer-item--time')
 
-            console.log('Found LinkedIn nodes:', {
-              title: titleNode?.textContent?.trim(),
-              company: companyNode?.textContent?.trim(),
+          console.log('Found LinkedIn nodes:', {
+            title: titleNode?.textContent?.trim(),
+            company: companyNode?.textContent?.trim(),
+            location: locationNode?.textContent?.trim(),
+            salary: salaryText,
+            description: description,
+            postedDate: postedDateNode?.textContent?.trim(),
+            url: jobUrlNode?.href,
+            logo: logoNode?.src,
+            allMetadata: metadataItems
+          })
+
+          if (titleNode && companyNode) {
+            // Clean up the title by taking only the first line
+            let title = titleNode.textContent.trim()
+            title = title.split('\n')[0].trim()
+
+            const job = Job.createFromLinkedIn({
+              title: title,
+              company: companyNode.textContent.trim(),
               location: locationNode?.textContent?.trim(),
-              salary: salaryText,
-              description: description,
+              salary: salaryText || '',
+              description: description || '',
               postedDate: postedDateNode?.textContent?.trim(),
-              url: jobUrlNode?.href,
-              logo: logoNode?.src,
-              allMetadata: metadataItems
+              jobUrl: jobUrlNode?.href || window.location.href,
+              companyLogoUrl: logoNode?.src
             })
-
-            if (titleNode && companyNode) {
-              // Clean up the title by taking only the first line
-              let title = titleNode.textContent.trim()
-              title = title.split('\n')[0].trim()
-
-              const job = Job.createFromLinkedIn({
-                title: title,
-                company: companyNode.textContent.trim(),
-                location: locationNode?.textContent?.trim(),
-                salary: salaryText || '',
-                description: description || '',
-                postedDate: postedDateNode?.textContent?.trim(),
-                jobUrl: jobUrlNode?.href || window.location.href,
-                companyLogoUrl: logoNode?.src
-              })
-              console.log('Successfully scraped LinkedIn job:', job)
-              jobs.push(job)
-            } else {
-              console.log('Skipping job due to missing required fields')
-            }
-          } catch (error) {
-            console.error('Error scraping LinkedIn job:', error)
+            console.log('Successfully scraped LinkedIn job:', job)
+            jobs.push(job)
+          } else {
+            console.log('Skipping job due to missing required fields')
           }
-        })
-
-        // Check for next page with specific LinkedIn next button selector
-        const nextButton = document.querySelector('button.jobs-search-pagination__button--next')
-        if (!nextButton || nextButton.disabled || nextButton.getAttribute('aria-disabled') === 'true') {
-          console.log('No more pages available or next button is disabled')
-          console.log(`=== LinkedIn Scraping Complete: ${jobs.length} jobs found ===`)
-          return {
-            jobs,
-            nextUrl: null
-          }
+        } catch (error) {
+          console.error('Error scraping LinkedIn job:', error)
         }
+      })
 
-        // Click next and wait for new content
-        nextButton.click()
-        await new Promise(resolve => setTimeout(resolve, 2000))
+      // Check for next page with specific LinkedIn next button selector
+      const nextButton = document.querySelector([
+        'button.jobs-search-pagination__button--next',
+        'button.artdeco-button--icon-right[aria-label="View next page"]',
+        'button.artdeco-button[data-test-pagination-page-btn]'
+      ].join(','))
 
-        // Wait for job cards to appear on new page
-        await new Promise((resolve) => {
-          const checkForElements = () => {
-            const newJobNodes = document.querySelectorAll('div.job-card-container')
-            if (newJobNodes.length > 0) {
-              resolve()
-            } else {
-              setTimeout(checkForElements, 500)
-            }
-          }
-          checkForElements()
-        })
+      let nextUrl = null
+      if (nextButton && !nextButton.disabled && nextButton.getAttribute('aria-disabled') !== 'true') {
+        // Get current page number from URL or default to 1
+        const currentUrl = new URL(window.location.href)
+        const currentStart = parseInt(currentUrl.searchParams.get('start') || '0')
+        const pageSize = 25 // LinkedIn's default page size
 
-        currentPage++
-        console.log(`Moving to page ${currentPage}`)
+        // Create next page URL
+        currentUrl.searchParams.set('start', (currentStart + pageSize).toString())
+        nextUrl = currentUrl.toString()
       }
 
       console.log(`=== LinkedIn Scraping Complete: ${jobs.length} jobs found ===`)
+      console.log('Next URL:', nextUrl)
+
       return {
         jobs,
-        nextUrl: null
+        nextUrl
       }
     },
     scrapeJobDetail: () => {
@@ -222,117 +207,90 @@ const scrapers = {
     isMatch: (url) => url.includes('seek.com.au'),
     scrapeJobList: async () => {
       const jobs = []
-      let currentPage = 1
-      const MAX_PAGES = 40 // Match LinkedIn's max pages
-
       console.log('=== SEEK Scraping Started ===')
       console.log('Current URL:', window.location.href)
-      console.log('Document ready state:', document.readyState)
 
-      while (currentPage <= MAX_PAGES) {
-        // Try multiple possible selectors
-        const selectors = [
-          '[data-testid="job-card"]',
-          'article[data-card-type="JobCard"]',
-          'article[role="article"]',
-          'a[data-testid="job-card-title"]',
-          '[data-automation="job-card"]'
-        ]
+      // Try multiple possible selectors
+      const selectors = [
+        '[data-testid="job-card"]',
+        'article[data-card-type="JobCard"]',
+        'article[role="article"]',
+        'a[data-testid="job-card-title"]',
+        '[data-automation="job-card"]'
+      ]
 
-        let jobNodes = []
-        for (const selector of selectors) {
-          const nodes = document.querySelectorAll(selector)
-          console.log(`Selector "${selector}" found ${nodes.length} nodes`)
-          if (nodes.length > 0) {
-            jobNodes = nodes
-            console.log('Using selector:', selector)
-            break
-          }
-        }
-
-        console.log('Found SEEK job nodes:', jobNodes.length)
-
-        // Process job nodes
-        jobNodes.forEach((node, index) => {
-          try {
-            console.log(`\nProcessing SEEK job ${index + 1}:`)
-
-            const titleNode =
-              node.querySelector('[data-testid="job-card-title"]') ||
-              node.querySelector('a[data-automation="jobTitle"]') ||
-              node.querySelector('a[class*="job-title"]') ||
-              node.querySelector('a[id^="job-title"]')
-
-            const companyNode =
-              node.querySelector('[data-automation="jobCompany"]') ||
-              node.querySelector('span[class*="l1r1184z"] a[data-automation="jobCompany"]') ||
-              node.querySelector('div.snwpn00 a[data-automation="jobCompany"]') ||
-              node.querySelector('span._1l99f880 a[data-type="company"]')
-
-            const locationNode =
-              node.querySelector('span[data-automation="jobCardLocation"]') ||
-              node.querySelector('a[data-automation="jobLocation"]') ||
-              node.querySelector('span[data-type="location"]')
-
-            const descriptionNode = node.querySelector('span[data-testid="job-card-teaser"]')
-            const salaryNode = node.querySelector('span[data-automation="jobSalary"]')
-            const postedDateNode = node.querySelector('span[data-automation="jobListingDate"] div._1kme6z20')
-
-            if (titleNode && companyNode) {
-              const job = Job.createFromSEEK({
-                title: titleNode.textContent.trim(),
-                company: companyNode.textContent.trim(),
-                location: locationNode?.textContent?.trim(),
-                jobUrl: titleNode.href || window.location.href,
-                description: descriptionNode?.textContent?.trim(),
-                salary: salaryNode?.textContent?.trim(),
-                postedDate: postedDateNode?.textContent?.trim(),
-                companyLogoUrl: null
-              })
-              console.log('Successfully scraped SEEK job:', job)
-              jobs.push(job)
-            }
-          } catch (error) {
-            console.error('Error scraping SEEK job:', error)
-          }
-        })
-
-        // Check for next page - using valid CSS selectors that target the last "Next" button
-        const nextButton = document.querySelector([
-          'li:last-child a[rel*="next"][aria-hidden="false"]',
-          'li:last-child a[data-automation^="page-"]:not([aria-current])'
-        ].join(','))
-
-        if (!nextButton || nextButton.getAttribute('aria-hidden') === 'true') {
-          console.log('No more pages available or next button is disabled')
-          console.log(`=== SEEK Scraping Complete: ${jobs.length} jobs found ===`)
+      let jobNodes = []
+      for (const selector of selectors) {
+        const nodes = document.querySelectorAll(selector)
+        if (nodes.length > 0) {
+          jobNodes = nodes
+          console.log('Using selector:', selector)
           break
         }
-
-        // Click next and wait for new content
-        nextButton.click()
-        await new Promise(resolve => setTimeout(resolve, 2000))
-
-        // Wait for job cards to appear on new page
-        await new Promise((resolve) => {
-          const checkForElements = () => {
-            const newJobNodes = document.querySelectorAll('[data-testid="job-card"]')
-            if (newJobNodes.length > 0) {
-              resolve()
-            } else {
-              setTimeout(checkForElements, 500)
-            }
-          }
-          checkForElements()
-        })
-
-        currentPage++
-        console.log(`Moving to page ${currentPage}`)
       }
 
+      console.log('Found SEEK job nodes:', jobNodes.length)
+
+      jobNodes.forEach(node => {
+        try {
+          console.log(`\nProcessing SEEK job:`)
+
+          const titleNode =
+            node.querySelector('[data-testid="job-card-title"]') ||
+            node.querySelector('a[data-automation="jobTitle"]') ||
+            node.querySelector('a[class*="job-title"]') ||
+            node.querySelector('a[id^="job-title"]')
+
+          const companyNode =
+            node.querySelector('[data-automation="jobCompany"]') ||
+            node.querySelector('span[class*="l1r1184z"] a[data-automation="jobCompany"]') ||
+            node.querySelector('div.snwpn00 a[data-automation="jobCompany"]') ||
+            node.querySelector('span._1l99f880 a[data-type="company"]')
+
+          const locationNode =
+            node.querySelector('span[data-automation="jobCardLocation"]') ||
+            node.querySelector('a[data-automation="jobLocation"]') ||
+            node.querySelector('span[data-type="location"]')
+
+          const descriptionNode = node.querySelector('span[data-testid="job-card-teaser"]')
+          const salaryNode = node.querySelector('span[data-automation="jobSalary"]')
+          const postedDateNode = node.querySelector('span[data-automation="jobListingDate"] div._1kme6z20')
+
+          if (titleNode && companyNode) {
+            const job = Job.createFromSEEK({
+              title: titleNode.textContent.trim(),
+              company: companyNode.textContent.trim(),
+              location: locationNode?.textContent?.trim(),
+              jobUrl: titleNode.href || window.location.href,
+              description: descriptionNode?.textContent?.trim(),
+              salary: salaryNode?.textContent?.trim(),
+              postedDate: postedDateNode?.textContent?.trim(),
+              companyLogoUrl: null
+            })
+            console.log('Successfully scraped SEEK job:', job)
+            jobs.push(job)
+          }
+        } catch (error) {
+          console.error('Error scraping SEEK job:', error)
+        }
+      })
+
+      // Check for next page - using valid CSS selectors that target the last "Next" button
+      const nextButton = document.querySelector([
+        'li:last-child a[rel*="next"][aria-hidden="false"]',
+        'li:last-child a[data-automation^="page-"]:not([aria-current])'
+      ].join(','))
+
+      const nextUrl = nextButton && nextButton.getAttribute('aria-hidden') !== 'true'
+        ? nextButton.href
+        : null
+
       console.log(`=== SEEK Scraping Complete: ${jobs.length} jobs found ===`)
+      console.log('Next URL:', nextUrl)
+
       return {
-        jobs
+        jobs,
+        nextUrl
       }
     },
     scrapeJobDetail: () => {
