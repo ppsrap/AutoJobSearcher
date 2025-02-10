@@ -284,6 +284,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       let currentUrl = currentTab.url
       console.log(`Initial ${platform} URL:`, currentUrl)
 
+      // Show overlay and set scraping state at the start
+      await chrome.storage.local.set({ isScrapingActive: true })
+      await chrome.tabs.sendMessage(tab.id, { action: 'showScrapeOverlay' })
+
       while (currentUrl) {
         console.log(`${platform} - Processing page ${pageNum}, URL:`, currentUrl)
 
@@ -292,6 +296,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           await chrome.tabs.get(tab.id)
         } catch (error) {
           console.log(`Tab was closed for ${platform}, returning collected jobs`)
+          await chrome.storage.local.set({ isScrapingActive: false })
           return allJobs
         }
 
@@ -300,6 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           console.log("Updating tab URL to:", currentUrl)
           await chrome.tabs.update(tab.id, { url: currentUrl })
           await waitForPageLoad(tab.id)
+          // The overlay will be automatically restored by the content script
         }
 
         // Update progress with current page number
@@ -329,9 +335,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         allJobs.push(...response.data)
         currentUrl = response.nextUrl
         pageNum++
+
+        // Small delay before next page
+        if (currentUrl) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
       }
     } catch (error) {
       console.log(`Error during ${platform} scraping:`, error)
+      await chrome.storage.local.set({ isScrapingActive: false })
+    } finally {
+      // Clear scraping state and remove overlay
+      await chrome.storage.local.set({ isScrapingActive: false })
+      try {
+        await chrome.tabs.sendMessage(tab.id, { action: 'removeScrapeOverlay' })
+      } catch (error) {
+        console.log('Tab might be closed, cannot remove overlay:', error)
+      }
     }
 
     console.log(`Total ${platform} jobs before deduplication:`, allJobs.length)
@@ -407,6 +427,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateProgress(0, 'Starting job search...')
 
     try {
+      // Clear any existing scraping state at the start
+      await chrome.storage.local.set({ isScrapingActive: false })
+
       // Get current website settings
       const settings = await chrome.storage.sync.get('websiteSettings')
       const savedSettings = settings.websiteSettings || {}
@@ -501,8 +524,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `Processing page ${currentPage} in ${site.platform}`
               )
             }),
-            tabClosedPromise.then(() => {
+            tabClosedPromise.then(async () => {
               console.log(`Tab closed for ${site.platform}`)
+              // Clear scraping state if tab is closed
+              await chrome.storage.local.set({ isScrapingActive: false })
               return [] // Return empty array if tab was closed
             })
           ])
@@ -524,6 +549,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           })
         } catch (error) {
           console.error(`Error processing ${site.platform}:`, error)
+          // Clear scraping state on error
+          await chrome.storage.local.set({ isScrapingActive: false })
           completedSites++
         }
       }
@@ -538,12 +565,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       showMessage(`Successfully scraped ${scrapedJobs.length} jobs!`)
       updateButtonStates(scrapedJobs.length > 0)
 
+      // Automatically trigger show in JobJourney if jobs were found
+      if (scrapedJobs.length > 0) {
+        try {
+          const response = await chrome.runtime.sendMessage({
+            action: 'openJobJourney',
+            jobs: scrapedJobs
+          })
+          console.log('Auto-opening in JobJourney:', response)
+
+          if (response && response.success) {
+            showMessage('Opening jobs in JobJourney...')
+          } else {
+            console.error('Failed to auto-open JobJourney:', response)
+          }
+        } catch (error) {
+          console.error('Error auto-opening JobJourney:', error)
+        }
+      }
+
     } catch (error) {
       console.error('Error during scraping:', error)
       showMessage('An error occurred during scraping', true)
       updateProgress(0, 'Scraping failed', error.message)
     } finally {
-      // Hide overlay and re-enable interaction
+      // Clear scraping state and clean up
+      await chrome.storage.local.set({ isScrapingActive: false })
       showOverlay(false)
       // Focus back on the extension window at the end
       chrome.windows.update(currentWindow.id, { focused: true })

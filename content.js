@@ -34,8 +34,142 @@ function testScraping () {
   return null
 }
 
+// Add overlay functionality
+function createScrapeOverlay () {
+  // Remove existing overlay if any
+  removeScrapeOverlay()
+
+  // Create overlay in a shadow DOM to isolate styles
+  const overlayContainer = document.createElement('div')
+  overlayContainer.id = 'jobjourney-scrape-overlay-container'
+  overlayContainer.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2147483647;
+    pointer-events: all;
+  `
+
+  // Create shadow DOM
+  const shadow = overlayContainer.attachShadow({ mode: 'closed' })
+
+  // Add styles to shadow DOM
+  const style = document.createElement('style')
+  style.textContent = `
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: Arial, sans-serif;
+    }
+
+    .content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      max-width: 400px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #0073b1;
+      border-radius: 50%;
+      margin: 0 auto 15px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    h3 {
+      margin: 0 0 10px 0;
+      color: #333;
+      font-size: 18px;
+    }
+
+    p {
+      margin: 0;
+      color: #666;
+      font-size: 14px;
+    }
+  `
+
+  // Create overlay structure
+  const overlay = document.createElement('div')
+  overlay.className = 'overlay'
+
+  const content = document.createElement('div')
+  content.className = 'content'
+
+  const spinner = document.createElement('div')
+  spinner.className = 'spinner'
+
+  const message = document.createElement('h3')
+  message.textContent = 'JobJourney Scraping in Progress'
+
+  const subMessage = document.createElement('p')
+  subMessage.textContent = 'Please do not close this tab or interact with the page until scraping is complete.'
+
+  // Assemble the overlay
+  content.appendChild(spinner)
+  content.appendChild(message)
+  content.appendChild(subMessage)
+  overlay.appendChild(content)
+
+  // Add everything to shadow DOM
+  shadow.appendChild(style)
+  shadow.appendChild(overlay)
+
+  // Add to document
+  document.documentElement.appendChild(overlayContainer)
+}
+
+function removeScrapeOverlay () {
+  const overlay = document.getElementById('jobjourney-scrape-overlay-container')
+  if (overlay) {
+    overlay.remove()
+  }
+}
+
+// Add state management
+let isScrapingActive = false
+
 // Listen for messages from popup or background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Content script received message:', request)
+
+  if (request.action === 'showScrapeOverlay') {
+    isScrapingActive = true
+    createScrapeOverlay()
+    // Store the scraping state
+    chrome.storage.local.set({ isScrapingActive: true })
+    sendResponse({ success: true })
+    return true
+  }
+
+  if (request.action === 'removeScrapeOverlay') {
+    isScrapingActive = false
+    removeScrapeOverlay()
+    // Clear the scraping state
+    chrome.storage.local.set({ isScrapingActive: false })
+    sendResponse({ success: true })
+    return true
+  }
+
   console.log('Received message:', request)
   console.log('Current page URL:', window.location.href)
   console.log('Current page title:', document.title)
@@ -94,4 +228,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // Required for async response
   return true
+})
+
+// Check scraping state on page load
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const result = await chrome.storage.local.get('isScrapingActive')
+    if (result.isScrapingActive) {
+      createScrapeOverlay()
+    }
+  } catch (error) {
+    console.error('Error checking scraping state:', error)
+  }
+})
+
+// Also check immediately in case DOMContentLoaded already fired
+chrome.storage.local.get('isScrapingActive', (result) => {
+  if (result.isScrapingActive) {
+    createScrapeOverlay()
+  }
+})
+
+// Ensure overlay persists after dynamic page updates
+const observer = new MutationObserver(() => {
+  if (isScrapingActive && !document.getElementById('jobjourney-scrape-overlay-container')) {
+    createScrapeOverlay()
+  }
+})
+
+observer.observe(document.documentElement, {
+  childList: true,
+  subtree: true
 })
