@@ -4,9 +4,11 @@
   "version": "1.0",
   "description": "Help you search and track job applications across multiple platforms",
   "permissions": [
+    "tabs",
     "storage",
-    "activeTab",
-    "scripting"
+    "scripting",
+    "system.display",
+    "activeTab"
   ],
   "host_permissions": [
     "*://*.linkedin.com/*",

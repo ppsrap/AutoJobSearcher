@@ -27,23 +27,31 @@ chrome.action.onClicked.addListener(async () => {
 
   // Get current window to determine screen position
   chrome.windows.getAll({ windowTypes: ['normal'] }, (windows) => {
-    // Find the rightmost window to determine screen width
-    const rightmostWindow = windows.reduce((prev, current) => {
-      return (prev.left + prev.width) > (current.left + current.width) ? prev : current
-    })
+    // Get the current screen dimensions
+    chrome.system.display.getInfo((displays) => {
+      const primaryDisplay = displays[0] // Use primary display
+      const screenWidth = primaryDisplay.bounds.width
+      const screenHeight = primaryDisplay.bounds.height
 
-    // Create a new popup window
-    chrome.windows.create({
-      url: 'popup.html',
-      type: 'popup',
-      width: 450,
-      height: 600,
-      focused: true,
-      top: 0, // Position at the top of the screen
-      left: Math.max(0, rightmostWindow.left + rightmostWindow.width - 450) // Position at the right of the screen
-    }, (window) => {
-      popupWindowId = window.id
-      chrome.windows.update(popupWindowId, { focused: true }) // Ensure the window is focused
+      // Calculate position to ensure window is always visible
+      const windowWidth = 800
+      const windowHeight = 800
+      const left = Math.min(Math.max(0, screenWidth - windowWidth), screenWidth - (windowWidth / 2))
+      const top = Math.min(Math.max(0, 0), screenHeight - (windowHeight / 2))
+
+      // Create a new popup window
+      chrome.windows.create({
+        url: 'popup.html',
+        type: 'popup',
+        width: windowWidth,
+        height: windowHeight,
+        focused: true,
+        top: top,
+        left: left
+      }, (window) => {
+        popupWindowId = window.id
+        chrome.windows.update(popupWindowId, { focused: true }) // Ensure the window is focused
+      })
     })
   })
 })
