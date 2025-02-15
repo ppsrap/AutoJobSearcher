@@ -28,7 +28,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const locationInput = document.getElementById('location')
   const searchBtn = document.getElementById('searchBtn')
   const scrapeBtn = document.getElementById('scrapeBtn')
-  const downloadBtn = document.getElementById('downloadBtn')
   const showInJobJourneyBtn = document.getElementById('showInJobJourneyBtn')
   const jobList = document.getElementById('jobList')
   const statusMessage = document.getElementById('statusMessage')
@@ -187,33 +186,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     card.appendChild(actions)
 
     return card
-  }
-
-  function downloadExcel (jobs) {
-    const headers = ['Title', 'Company', 'Location', 'Platform', 'URL', 'Description', 'Salary', 'Job Type']
-    const csvContent = [
-      headers.join(','),
-      ...jobs.map(job => [
-        `"${job.title || ''}"`,
-        `"${job.company || ''}"`,
-        `"${job.location || ''}"`,
-        `"${job.platform || ''}"`,
-        `"${job.jobUrl || ''}"`,
-        `"${(job.description || '').replace(/"/g, '""')}"`,
-        `"${job.salary || ''}"`,
-        `"${job.jobType || ''}"`,
-      ].join(','))
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-
-    const link = document.createElement('a')
-    link.setAttribute('href', url)
-    link.setAttribute('download', `jobs_${new Date().toISOString().slice(0, 10)}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
   }
 
   // 等待页面加载完成
@@ -384,12 +356,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   })
 
-  // Enable/disable showInJobJourneyBtn along with downloadBtn
-  const updateButtonStates = (hasJobs) => {
-    downloadBtn.disabled = !hasJobs
-    showInJobJourneyBtn.disabled = !hasJobs
-  }
-
   // Update search button click handler
   searchBtn.addEventListener('click', async () => {
     const locationSelect = document.getElementById('location')
@@ -420,7 +386,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Reset state
     scrapedJobs = []
     jobList.innerHTML = ''
-    downloadBtn.disabled = true
 
     // Show progress section
     progressSection.style.display = 'block'
@@ -597,14 +562,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   })
 
-  downloadBtn.addEventListener('click', () => {
-    if (scrapedJobs.length === 0) {
-      showMessage('No jobs to download', true)
-      return
-    }
-    downloadExcel(scrapedJobs)
-    showMessage('Jobs downloaded successfully!')
-  })
+  // Update button states function to only handle showInJobJourneyBtn
+  const updateButtonStates = (hasJobs) => {
+    showInJobJourneyBtn.disabled = !hasJobs
+  }
 })
 
 // Update message listener in content.js
