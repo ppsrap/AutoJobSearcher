@@ -13,7 +13,7 @@
   "host_permissions": [
     "*://*.linkedin.com/*",
     "*://*.indeed.com/*",
-    "*://*.seek.com.au/*",
+    "*://*.seek.com.nz/*",
     "http://localhost:3000/*",
     "https://*.jobjourney.me/*"
   ],
@@ -32,7 +32,7 @@
     {
       "matches": [
         "https://*.linkedin.com/*",
-        "https://*.seek.com.au/*",
+        "https://*.seek.com.nz/*",
         "https://*.indeed.com/*"
       ],
       "js": [

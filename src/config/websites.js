@@ -15,7 +15,7 @@ export const supportedWebsites = [
   {
     id: 'seek',
     name: 'SEEK',
-    domain: 'seek.com.au',
+    domain: 'seek.com.nz',
     enabled: true
   }
 ] 

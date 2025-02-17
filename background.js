@@ -165,8 +165,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'openJobSites') {
     const sites = [
       'https://www.linkedin.com/jobs/search?keywords=Full+Stack&location=' + encodeURIComponent(request.location),
-      'https://www.seek.com.au/full-stack-jobs/in-' + request.location.replace(/\s+/g, '-'),
-      'https://au.indeed.com/jobs?q=Full+Stack&l=' + encodeURIComponent(request.location)
+      'https://www.seek.com.nz/full-stack-jobs/in-' + request.location.replace(/\s+/g, '-'),
+      'https://nz.indeed.com/jobs?q=Full+Stack&l=' + encodeURIComponent(request.location)
     ]
 
     sites.forEach(url => {

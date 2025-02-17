@@ -413,13 +413,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         },
         {
           id: 'seek',
-          url: `https://www.seek.com.au/${seekSearchTerm}-jobs/in-${location.split(',')[0].toLowerCase().replace(/\s+/g, '-')}`,
+          url: `https://www.seek.co.nz/${seekSearchTerm}-jobs/in-All-${location.split(',')[0].replace(/\s+/g, '-')}`,
           platform: 'SEEK',
           action: 'scrapeSEEK'
         },
         {
           id: 'indeed',
-          url: `https://au.indeed.com/jobs?q=${encodeURIComponent(searchTerm)}&l=${encodeURIComponent(location)}`,
+          url: `https://nz.indeed.com/jobs?q=${encodeURIComponent(searchTerm)}&l=${encodeURIComponent(location)}`,
           platform: 'Indeed',
           action: 'scrapeJobs'
         }

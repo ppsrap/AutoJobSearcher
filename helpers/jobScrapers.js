@@ -204,7 +204,7 @@ const scrapers = {
     }
   },
   seek: {
-    isMatch: (url) => url.includes('seek.com.au'),
+    isMatch: (url) => url.includes('seek.com.nz'),
     scrapeJobList: async () => {
       const jobs = []
       console.log('=== SEEK Scraping Started ===')

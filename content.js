@@ -10,7 +10,7 @@ function testScraping () {
     console.log('First job title:', document.querySelector('h3.base-search-card__title')?.textContent.trim())
     console.log('First company:', document.querySelector('h4.base-search-card__subtitle a')?.textContent.trim())
   }
-  else if (currentUrl.includes('seek.com.au')) {
+  else if (currentUrl.includes('seek.com.nz')) {
     console.log('Testing SEEK selectors:')
     console.log('Job cards:', document.querySelectorAll('article[data-card-type="JobCard"]').length)
     console.log('First job title:', document.querySelector('[data-automation="job-title"]')?.textContent.trim())
