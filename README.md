@@ -1,30 +1,6 @@
 # JobJourney Browser Extension
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/Rorogogogo/Jobjourney-extention/blob/main/LICENSE)
-[![GitHub Issues](https://img.shields.io/github/issues/Rorogogogo/Jobjourney-extention)](https://github.com/Rorogogogo/Jobjourney-extention/issues)
-
-A powerful browser extension that enhances your job search experience by seamlessly integrating with [JobJourney](https://jobjourney.me/). This extension automatically scrapes job listings from popular job platforms and helps you manage your job search journey effectively.
-
-## ⚠️ Important Disclaimer
-
-This extension uses web scraping to collect job information. Please note:
-
-- **Rate Limiting**: To avoid overwhelming job sites' servers and prevent potential IP blocking:
-  - Limit your searches to a reasonable number per hour
-  - Avoid rapid-fire searches or excessive page refreshes
-  - Use the extension as you would normally browse job listings
-- **Terms of Service**:
-  - Be aware that excessive scraping may violate job sites' terms of service
-  - Use this tool responsibly and ethically
-  - This extension is for personal use only
-- **Data Accuracy**:
-  - Job listings may change or be removed without notice
-  - Always verify information on the original job posting
-  - We cannot guarantee 100% accuracy of scraped data
-- **Site Changes**:
-  - Website structure changes may temporarily affect the extension's functionality
-  - Updates will be released to address any scraping issues
-  - Please report any inconsistencies or issues
+A powerful Chrome extension that automate your job search experience by seamlessly integrating with [JobJourney](https://jobjourney.me/). This extension automatically scrapes job listings from popular job platforms and helps you manage your job search journey effectively.
 
 ## Features
 
@@ -33,6 +9,7 @@ This extension uses web scraping to collect job information. Please note:
 - **LinkedIn**: Extracts job titles, companies, locations, salaries, and posting dates
 - **Indeed**: Captures comprehensive job details including job type, salary information, and descriptions
 - **SEEK**: Scrapes job listings with company information, locations, and salary details
+- **Trademe**: Scrapes job listings with company information, locations, and salary details
 
 ### Data Extraction
 
@@ -58,14 +35,12 @@ The extension automatically extracts:
 ## How to Use
 
 1. **Installation**
-
    - Download the extension files
    - Open Chrome and navigate to `chrome://extensions/`
    - Enable "Developer mode"
    - Click "Load unpacked" and select the extension directory
 
 2. **Job Search**
-
    - Visit LinkedIn, Indeed, or SEEK
    - Search for jobs as you normally would
    - The extension will automatically detect and scrape job listings
@@ -76,11 +51,28 @@ The extension automatically extracts:
    - Click "View" to open the original job posting
    - Export jobs to CSV format for offline use
 
-## Supported Platforms
+ 
+## ⚠️ Important Disclaimer
 
-- LinkedIn (www.linkedin.com/jobs)
-- Indeed (www.indeed.com)
-- SEEK (www.seek.com.au)
+This extension uses web scraping to collect job information. Please note:
+
+- **Rate Limiting**: To avoid overwhelming job sites' servers and prevent potential IP blocking:
+  - Limit your searches to a reasonable number per hour
+  - Avoid rapid-fire searches or excessive page refreshes
+  - Use the extension as you would normally browse job listings
+- **Terms of Service**:
+  - Be aware that excessive scraping may violate job sites' terms of service
+  - Use this tool responsibly and ethically
+  - This extension is for personal use only
+- **Data Accuracy**:
+  - Job listings may change or be removed without notice
+  - Always verify information on the original job posting
+  - We cannot guarantee 100% accuracy of scraped data
+- **Site Changes**:
+  - Website structure changes may temporarily affect the extension's functionality
+  - Updates will be released to address any scraping issues
+  - Please report any inconsistencies or issues
+
 
 ## Privacy & Security
 
@@ -89,32 +81,9 @@ The extension automatically extracts:
 - No personal data is collected
 - All data is securely transmitted to JobJourney using encryption
 
-## Development
-
-### Prerequisites
-
-- Chrome Browser
-- Basic understanding of JavaScript and browser extensions
-
-### Local Development
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For support:
-
-- Create an [issue](https://github.com/Rorogogogo/Jobjourney-extention/issues)
-- Visit [JobJourney Support](https://jobjourney.me/support)
-- Email: support@jobjourney.me
 
 ## Acknowledgments
 
